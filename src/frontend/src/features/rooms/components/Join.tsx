@@ -15,22 +15,28 @@ import {
   facingModeFromLocalTrack,
   LocalVideoTrack,
   Track,
+  TrackProcessor,
 } from 'livekit-client'
 import { H } from '@/primitives/H'
 import { SelectToggleDevice } from '../livekit/components/controls/SelectToggleDevice'
 import { Field } from '@/primitives/Field'
-import { Button } from '@/primitives'
+import { Button, Dialog } from '@/primitives'
+import { BackgroundBlurFactory } from '../livekit/components/blur'
+import { EffectsConfiguration } from '../livekit/components/Effects'
+import { LocalUserChoicesCustom } from '../routes/Room'
 
 const onError = (e: Error) => console.error('ERROR', e)
 
 export const Join = ({
   onSubmit,
 }: {
-  onSubmit: (choices: LocalUserChoices) => void
+  onSubmit: (choices: LocalUserChoicesCustom) => void
 }) => {
   const { t } = useTranslation('rooms')
   const { user } = useUser()
-  const defaults: Partial<LocalUserChoices> = { username: user?.full_name }
+  const defaults: Partial<LocalUserChoicesCustom> = {
+    username: user?.full_name,
+  }
   const persistUserChoices = true
   const joinLabel = t('join.joinLabel')
   const userLabel = t('join.usernameLabel')
@@ -170,6 +176,7 @@ export const Join = ({
   function handleSubmit() {
     if (handleValidation(userChoices)) {
       if (typeof onSubmit === 'function') {
+        console.log('submit', userChoices)
         onSubmit(userChoices)
       }
     } else {
@@ -177,8 +184,35 @@ export const Join = ({
     }
   }
 
+  const [isEffectsOpen, setEffectsOpen] = React.useState(false)
+
+  const openEffects = () => {
+    setEffectsOpen(true)
+  }
+
   return (
     <Screen footer={false}>
+      <Dialog
+        isOpen={isEffectsOpen}
+        onOpenChange={setEffectsOpen}
+        role="dialog"
+        type="flex"
+      >
+        <div
+          className={css({
+            width: '50rem',
+          })}
+        ></div>
+        <EffectsConfiguration
+          videoTrack={videoTrack}
+          onSubmit={(processor) => {
+            setUserChoices((value) => ({
+              ...value,
+              processor,
+            }))
+          }}
+        />
+      </Dialog>
       <div
         className={css({
           display: 'flex',
@@ -302,6 +336,7 @@ export const Join = ({
                 }
                 variant="tertiary"
               />
+              <Button onPress={openEffects}>Effects</Button>
             </div>
           </div>
 

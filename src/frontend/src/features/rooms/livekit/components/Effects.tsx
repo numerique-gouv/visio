@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocalParticipant } from '@livekit/components-react'
-import { LocalVideoTrack } from 'livekit-client'
+import { LocalVideoTrack, Track, TrackProcessor } from 'livekit-client'
 import { Text, P, ToggleButton, Div, H } from '@/primitives'
 import { useTranslation } from 'react-i18next'
 import { HStack, styled, VStack } from '@/styled-system/jsx'
@@ -26,6 +26,159 @@ enum BlurRadius {
 }
 
 const isSupported = BackgroundBlurFactory.isSupported()
+
+export const EffectsConfiguration = ({
+  videoTrack,
+  onSubmit,
+}: {
+  videoTrack: LocalVideoTrack
+  onSubmit: (processor?: TrackProcessor<Track.Kind.Video>) => void
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const { t } = useTranslation('rooms', { keyPrefix: 'effects' })
+  const [processorPending, setProcessorPending] = useState(false)
+
+  useEffect(() => {
+    const videoElement = videoRef.current
+    if (!videoElement) return
+
+    const attachVideoTrack = async () => videoTrack?.attach(videoElement)
+    attachVideoTrack()
+
+    return () => {
+      if (!videoElement) return
+      videoTrack.detach(videoElement)
+    }
+  }, [videoTrack])
+
+  const toggleBlur = async (blurRadius: number) => {
+    // if (!isCameraEnabled) await localParticipant.setCameraEnabled(true)
+    if (!videoTrack) return
+    setProcessorPending(true)
+    const processor = getProcessor()
+    const currentBlurRadius = getBlurRadius()
+    try {
+      if (blurRadius == currentBlurRadius && processor) {
+        await videoTrack.stopProcessor()
+        onSubmit(undefined)
+      } else if (!processor) {
+        const newProcessor = BackgroundBlurFactory.getProcessor({ blurRadius })!
+        await videoTrack.setProcessor(newProcessor)
+        onSubmit(newProcessor)
+      } else {
+        processor?.update({ blurRadius })
+      }
+    } catch (error) {
+      console.error('Error applying blur:', error)
+    } finally {
+      setProcessorPending(false)
+    }
+  }
+
+  const getProcessor = () => {
+    return videoTrack?.getProcessor() as BackgroundBlurProcessorInterface
+  }
+
+  const getBlurRadius = (): BlurRadius => {
+    const processor = getProcessor()
+    return processor?.options.blurRadius || BlurRadius.NONE
+  }
+
+  const isSelected = (blurRadius: BlurRadius) => {
+    return getBlurRadius() == blurRadius
+  }
+
+  const tooltipLabel = (blurRadius: BlurRadius) => {
+    return t(`blur.${isSelected(blurRadius) ? 'clear' : 'apply'}`)
+  }
+
+  return (
+    <div>
+      <div>
+        {videoTrack ? (
+          <video
+            ref={videoRef}
+            width="100%"
+            muted
+            style={{
+              transform: 'rotateY(180deg)',
+              minHeight: '175px',
+              borderRadius: '8px',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '174px',
+              display: 'flex',
+              backgroundColor: 'black',
+              justifyContent: 'center',
+              flexDirection: 'column',
+            }}
+          >
+            <P
+              style={{
+                color: 'white',
+                textAlign: 'center',
+                textWrap: 'balance',
+                marginBottom: 0,
+              }}
+            >
+              {t('activateCamera')}
+            </P>
+          </div>
+        )}
+      </div>
+      <div>
+        <H
+          lvl={3}
+          style={{
+            marginBottom: '0.4rem',
+          }}
+        >
+          {t('heading')}
+        </H>
+        {isSupported ? (
+          <HStack>
+            <ToggleButton
+              size={'sm'}
+              aria-label={tooltipLabel(BlurRadius.LIGHT)}
+              tooltip={tooltipLabel(BlurRadius.LIGHT)}
+              isDisabled={processorPending}
+              onPress={async () => await toggleBlur(BlurRadius.LIGHT)}
+              isSelected={isSelected(BlurRadius.LIGHT)}
+            >
+              {t('blur.light')}
+            </ToggleButton>
+            <ToggleButton
+              size={'sm'}
+              aria-label={tooltipLabel(BlurRadius.NORMAL)}
+              tooltip={tooltipLabel(BlurRadius.NORMAL)}
+              isDisabled={processorPending}
+              onPress={async () => await toggleBlur(BlurRadius.NORMAL)}
+              isSelected={isSelected(BlurRadius.NORMAL)}
+            >
+              {t('blur.normal')}
+            </ToggleButton>
+          </HStack>
+        ) : (
+          <Text variant="sm">{t('notAvailable')}</Text>
+        )}
+        <Information>
+          <Text
+            variant="sm"
+            style={{
+              textWrap: 'balance',
+            }}
+          >
+            ⚠︎ {t('experimental')}
+          </Text>
+        </Information>
+      </div>
+    </div>
+  )
+}
 
 export const Effects = () => {
   const { t } = useTranslation('rooms', { keyPrefix: 'effects' })

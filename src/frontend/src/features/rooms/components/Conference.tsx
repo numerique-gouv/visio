@@ -16,6 +16,8 @@ import { InviteDialog } from './InviteDialog'
 import { VideoConference } from '../livekit/prefabs/VideoConference'
 import posthog from 'posthog-js'
 import { css } from '@/styled-system/css'
+import { BackgroundBlurFactory } from '../livekit/components/blur'
+import { LocalUserChoicesCustom } from '../routes/Room'
 
 export const Conference = ({
   roomId,
@@ -24,7 +26,7 @@ export const Conference = ({
   mode = 'join',
 }: {
   roomId: string
-  userConfig: LocalUserChoices
+  userConfig: LocalUserChoicesCustom
   mode?: 'join' | 'create'
   initialRoomData?: ApiRoom
 }) => {
@@ -39,6 +41,7 @@ export const Conference = ({
     isError: isCreateError,
   } = useCreateRoom({
     onSuccess: (data) => {
+      console.log('setData', fetchKey, data)
       queryClient.setQueryData(fetchKey, data)
     },
   })
@@ -102,6 +105,12 @@ export const Conference = ({
     peerConnectionTimeout: 60000, // Default: 15s. Extended for slow TURN/TLS negotiation
   }
 
+  console.log(
+    'userConfig',
+    userConfig,
+    BackgroundBlurFactory.getProcessor({ blurRadius: 10 })!
+  )
+
   return (
     <QueryAware status={isFetchError ? createStatus : fetchStatus}>
       <Screen header={false} footer={false}>
@@ -111,7 +120,9 @@ export const Conference = ({
           token={data?.livekit?.token}
           connect={true}
           audio={userConfig.audioEnabled}
-          video={userConfig.videoEnabled}
+          video={{
+            processor: userConfig.processor?.clone(),
+          }}
           connectOptions={connectOptions}
           className={css({
             backgroundColor: 'primaryDark.50 !important',

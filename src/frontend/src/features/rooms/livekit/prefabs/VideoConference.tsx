@@ -5,7 +5,7 @@ import {
   isWeb,
   log,
 } from '@livekit/components-core'
-import { RoomEvent, Track } from 'livekit-client'
+import { LocalVideoTrack, RoomEvent, Track } from 'livekit-client'
 import * as React from 'react'
 
 import {
@@ -18,6 +18,7 @@ import {
   usePinnedTracks,
   useTracks,
   useCreateLayoutContext,
+  useLocalParticipant,
 } from '@livekit/components-react'
 
 import { ControlBar } from './ControlBar/ControlBar'
@@ -29,6 +30,7 @@ import { ParticipantTile } from '../components/ParticipantTile'
 import { SidePanel } from '../components/SidePanel'
 import { useSidePanel } from '../hooks/useSidePanel'
 import { RecordingStateToast } from '../components/RecordingStateToast'
+import { BackgroundBlurFactory } from '../components/blur'
 
 const LayoutWrapper = styled(
   'div',
@@ -91,6 +93,34 @@ export function VideoConference({ ...props }: VideoConferenceProps) {
   const carouselTracks = tracks.filter(
     (track) => !isEqualTrackRef(track, focusTrack)
   )
+
+  /**
+   * POC
+   */
+
+  const { isCameraEnabled, cameraTrack, localParticipant } =
+    useLocalParticipant()
+  const localCameraTrack = cameraTrack?.track as LocalVideoTrack
+  const [effectsApplied, setEffectsApplied] = React.useState(false)
+
+  React.useEffect(() => {
+    console.log(
+      'localParticipant',
+      isCameraEnabled,
+      cameraTrack,
+      localCameraTrack,
+      localParticipant
+    )
+    // if (!localCameraTrack) {
+    //   return
+    // }
+    // localCameraTrack.setProcessor(
+    //   BackgroundBlurFactory.getProcessor({ blurRadius: 10 })!
+    // )
+    setEffectsApplied(true)
+  }, [localCameraTrack])
+
+  /** */
 
   /* eslint-disable react-hooks/exhaustive-deps */
   // Code duplicated from LiveKit; this warning will be addressed in the refactoring.
